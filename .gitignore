@@ -1,0 +1,13 @@
+# 运行时日志（含内部 trace，禁止提交）
+log/
+*.log
+
+# 生成的图片输出目录
+Seedream-Images/
+
+# API Key 配置备份（skill 运行时生成）
+*.backup.before_agentplan
+
+# 依赖与系统文件
+node_modules/
+.DS_Store
