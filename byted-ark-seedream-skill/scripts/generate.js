@@ -281,12 +281,48 @@ function smartScanForArkKey() {
   return found;
 }
 
+// 部分宿主平台（如 OpenClaw）通过一份 dotenv 文件下发工具凭证，而非直接暴露成真实
+// env var。/root/.openclaw/.env 用绝对路径优先检查（不依赖脚本实际运行时 $HOME 解析到
+// 哪个用户），再检查 ~/.openclaw/.env。已存在的真实 env var 不会被覆盖（setdefault 语义）。
+const OPENCLAW_ENV_PATHS = ['/root/.openclaw/.env', path.join(os.homedir(), '.openclaw', '.env')];
+
+function loadOpenClawEnv() {
+  const seen = new Set();
+  for (const rawPath of OPENCLAW_ENV_PATHS) {
+    let content;
+    try {
+      if (seen.has(rawPath) || !fs.existsSync(rawPath)) continue;
+      seen.add(rawPath);
+      content = fs.readFileSync(rawPath, 'utf8');
+    } catch (e) {
+      continue;
+    }
+    for (let line of content.split('\n')) {
+      line = line.trim();
+      if (!line || line.startsWith('#')) continue;
+      if (line.startsWith('export ')) line = line.slice('export '.length).trim();
+      const eq = line.indexOf('=');
+      if (eq < 0) continue;
+      const key = line.slice(0, eq).trim();
+      let value = line.slice(eq + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      if (key && !(key in process.env)) {
+        process.env[key] = value;
+      }
+    }
+  }
+}
+
 /**
  * 自动检测 API Key（完整流程）
  */
 function autoDetectApiKey() {
-  // 优先级 1: 显式环境变量（宿主平台通过 skill 级 env 下发的专属 key），与其余
-  // ARK_SEEDREAM_* 覆盖项同一套命名约定，跳过平台探测直接生效。
+  loadOpenClawEnv();
+
+  // 优先级 1: 显式环境变量（宿主平台通过 skill 级 env 下发的专属 key，或上面 loadOpenClawEnv()
+  // 从 dotenv 文件补齐），与其余 ARK_SEEDREAM_* 覆盖项同一套命名约定，跳过平台探测直接生效。
   if (process.env.ARK_SEEDREAM_API_KEY) {
     const validation = validateArkKey(process.env.ARK_SEEDREAM_API_KEY);
     if (validation.valid) {
