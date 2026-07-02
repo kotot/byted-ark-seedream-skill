@@ -285,8 +285,17 @@ function smartScanForArkKey() {
  * 自动检测 API Key（完整流程）
  */
 function autoDetectApiKey() {
+  // 优先级 1: 显式环境变量（宿主平台通过 skill 级 env 下发的专属 key），与其余
+  // ARK_SEEDREAM_* 覆盖项同一套命名约定，跳过平台探测直接生效。
+  if (process.env.ARK_SEEDREAM_API_KEY) {
+    const validation = validateArkKey(process.env.ARK_SEEDREAM_API_KEY);
+    if (validation.valid) {
+      return { key: validation.trimmed, source: 'env-override', found: true };
+    }
+  }
+
   const platform = detectPlatform();
-  
+
   // 优先级 2: 根据当前平台读取对应配置
   if (platform === 'claude-code') {
     // 1. 先读环境变量（会话级，优先级最高）
