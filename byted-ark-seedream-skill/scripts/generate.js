@@ -324,9 +324,15 @@ function autoDetectApiKey() {
   // 优先级 1: 显式环境变量（宿主平台通过 skill 级 env 下发的专属 key，或上面 loadOpenClawEnv()
   // 从 dotenv 文件补齐），与其余 ARK_SEEDREAM_* 覆盖项同一套命名约定，跳过平台探测直接生效。
   if (process.env.ARK_SEEDREAM_API_KEY) {
-    const validation = validateArkKey(process.env.ARK_SEEDREAM_API_KEY);
+    const raw = process.env.ARK_SEEDREAM_API_KEY.trim();
+    const validation = validateArkKey(raw);
     if (validation.valid) {
       return { key: validation.trimmed, source: 'env-override', found: true };
+    }
+    // base URL 被覆盖时请求发往宿主代理网关，凭证是代理签发的不透明 token
+    // （不一定是 ark- 前缀），格式校验交给代理侧，这里原样放行。
+    if (raw && (process.env.ARK_SEEDREAM_API_BASE_URL || process.env.ARK_API_BASE_URL)) {
+      return { key: raw, source: 'env-override', found: true };
     }
   }
 
