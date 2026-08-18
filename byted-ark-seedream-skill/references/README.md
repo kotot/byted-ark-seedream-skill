@@ -45,6 +45,20 @@ byted-ark-seedream-skill/
 > 💡 **环境变量仅用于兜底，一般不需要设置！**<br>
 > Skill 会自动从 OpenClaw / Hermes / Claude Code 的配置中读取 API Key。
 
+### Atlas Cloud 可选 provider
+
+Ark 仍是默认 provider。需要使用 Atlas Cloud 时，显式传入 `--provider atlascloud` 并设置独立的 `ATLASCLOUD_API_KEY`：
+
+```bash
+export ATLASCLOUD_API_KEY="<atlascloud-api-key>"
+node scripts/generate.js \
+  --provider atlascloud \
+  --prompt "一只可爱的小猫，阳光洒进窗台" \
+  --size 2K
+```
+
+Atlas Cloud provider 会按生成模式选择 Seedream v5.0 Lite 模型，并使用异步任务提交与有界 prediction 轮询。它不会覆盖或保存 Ark Agent Plan 的全局凭证。
+
 ### 🔑 API Key 配置（三层优先级）
 
 Skill 会按以下优先级自动检测 API Key，真正做到「零配置开箱即用」：
