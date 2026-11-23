@@ -590,16 +590,18 @@ function getDefaultSavePath() {
 
 // 自动检测 API Key
 const detected = autoDetectApiKey();
+const SEEDREAM_55_MODEL = 'doubao-seedream-5-5-261028';
 
 const CONFIG = {
   // Agent Plan 专属版本 - 使用 Agent Plan 统一 baseurl /api/plan/v3
   apiBaseUrl: process.env.ARK_SEEDREAM_API_BASE_URL || process.env.ARK_API_BASE_URL || 'https://ark.cn-beijing.volces.com/api/plan/v3',
   // Agent Plan 生图模型，优先读取调用进程的环境变量
-  model: process.env.ARK_SEEDREAM_MODEL || process.env.ARK_MODEL || 'doubao-seedream-5-5-261028',
+  model: process.env.ARK_SEEDREAM_MODEL || process.env.ARK_MODEL || SEEDREAM_55_MODEL,
   // API Key：自动检测结果
   apiKey: detected.found ? detected.key : '',
   savePath: getDefaultSavePath()
 };
+const isSeedream55 = CONFIG.model === SEEDREAM_55_MODEL;
 
 /**
  * 验证必需配置检查
@@ -705,6 +707,9 @@ function validateParams(params) {
       errors.push(`${key} 参数必须是布尔值（true/false）`);
     }
   });
+  if (isSeedream55 && (params.sequential || params.stream || params.enable_web_search)) {
+    errors.push('Seedream 5.5 不支持组图、流式输出或联网搜索。请关闭对应参数，或选择支持该功能的模型。');
+  }
 
   // 8. user_id 长度限制
   if (params.user_id && params.user_id.length > 128) {
@@ -1067,13 +1072,17 @@ async function callSeedreamApi(params, saveDir, timestamp) {
   const body = {
     model: CONFIG.model,
     prompt: params.prompt,
-    sequential_image_generation: params.sequential ? 'auto' : 'disabled',
     response_format: 'url',
     size: params.size || '2k',
-    stream: params.stream,
     watermark: params.watermark !== false,
     output_format: params.response_format || 'jpeg'  // 图片输出格式默认使用 JPEG，也支持 PNG
   };
+
+  // Seedream 5.5 的单图接口要求省略组图参数，即使值为 disabled。
+  if (!isSeedream55) {
+    body.sequential_image_generation = params.sequential ? 'auto' : 'disabled';
+    body.stream = params.stream;
+  }
 
   // 联网搜索开关
   if (params.enable_web_search === true) {
@@ -1274,7 +1283,7 @@ async function main() {
     }
     
     // 自动检测联网搜索：提示词包含相关关键词时自动开启
-    if (params.enable_web_search === undefined) {
+    if (!isSeedream55 && params.enable_web_search === undefined) {
       const lowerPrompt = params.originalPrompt.toLowerCase();
       if (/联网|搜索|实时|最新|新闻|赛事|今天|今日|现在|当前|刚|最新消息/i.test(lowerPrompt)) {
         params.enable_web_search = true;
