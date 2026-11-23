@@ -31,16 +31,16 @@ Skill 接受以下格式的参考图片文件，Agent 层需要负责转换：
 > ⚠️ **保存位置**：图片会保存到**脚本运行时的当前工作目录**（即 Claude 启动目录）下的 `Seedream-Images/YYYY-MM-DD/`。
 > 因此实际调用时请使用脚本的【绝对路径】并保持在 Claude 启动目录运行，**不要 `cd` 进入 skill 安装目录**（否则图片会存到 skill 目录里）。
 > 下方示例为简洁写成相对路径 `scripts/generate.js`，真实调用请替换为绝对路径，例如：
-> `node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js --prompt "..."`。
+> `ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028 node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js --prompt "..."`。
 > 如需固定到其它位置，设置环境变量 `ARK_SEEDREAM_SAVE_PATH`。
 
 ### 方式一：单张图片生成
 ```bash
 # 基本用法
-node scripts/generate.js --prompt "一只可爱的小猫"
+ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028 node scripts/generate.js --prompt "一只可爱的小猫"
 
 # 完整参数
-node scripts/generate.js \
+ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028 node scripts/generate.js \
   --prompt "一只可爱的小猫" \
   --size "2K" \
   --mode "text-to-image" \
@@ -74,7 +74,7 @@ node scripts/generate.js \
 
 ### 方式二：连贯组图生成（流式输出）
 ```bash
-node scripts/generate.js \
+ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028 node scripts/generate.js \
   --prompt "春夏秋冬四季变迁，同一地点" \
   --sequential true \
   --count 4 \
@@ -117,7 +117,7 @@ Skill 采用 stderr / stdout 分离设计：
 
 ```javascript
 // 1. 分别捕获 stderr 和 stdout
-const { stderr, stdout } = await execAsync('node scripts/generate.js --prompt "xxx"');
+const { stderr, stdout } = await execAsync('ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028 node scripts/generate.js --prompt "xxx"');
 
 // 2. stderr 直接逐行展示给用户（实时进度反馈）
 showToUser(stderr);

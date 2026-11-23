@@ -7,7 +7,7 @@
 # ✅ 统一 baseurl: https://ark-stg.cn-beijing.volces.com/api/plan/v3
 # ✅ 复用 Agent Plan api_key，无需单独配置
 # ✅ 无需切换模型，一体化体验
-# ✅ 模型名称: doubao-seedream-5.0-lite
+# ✅ 模型名称: doubao-seedream-5-5-261028
 #
 # 核心能力：
 # ✅ 文生图 - 单张

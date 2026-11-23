@@ -94,7 +94,7 @@ apiKey
 
 | 模型 ID | 说明 |
 |---------|------|
-| **`doubao-seedream-5.0-lite`** | **默认推荐**，速度快、质量好，适合绝大多数场景 |
+| **`doubao-seedream-5-5-261028`** | 此版本的默认生图模型 |
 
 ---
 
@@ -104,7 +104,7 @@ apiKey
 
 | 环境变量 | 说明 | 默认值 |
 |---------|------|--------|
-| `ARK_SEEDREAM_MODEL` | 自定义模型 ID | `doubao-seedream-5.0-lite` |
+| `ARK_SEEDREAM_MODEL` | 自定义模型 ID | `doubao-seedream-5-5-261028` |
 | `ARK_SEEDREAM_API_BASE_URL` | 自定义 API 地址 | 官方地址 |
 | `ARK_SEEDREAM_SAVE_PATH` | 图片保存路径 | Claude 启动目录（当前工作目录） |
 | `ARK_API_BASE_URL` | 全局 API 地址（兜底） | - |

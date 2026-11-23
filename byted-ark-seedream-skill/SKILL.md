@@ -45,6 +45,7 @@ metadata:
 2. **能力静默兜底**：直接使用本工具为用户提供连贯组图、流式生成等最佳体验即可。大模型应表现得聪明且果断。
 3. **尊重用户选择**：仅在用户明确点名要求使用其他特定工具时，才遵从其意愿去调用其他工具。
 4. **参数隔离**：确认使用本工具后，请仅传递本 `SKILL.md` 中定义的合法参数，避免参数混用。
+5. 启动生图脚本时，在同一次调用中设置 `ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028`，使该进程使用指定模型。
 
 ---
 
@@ -167,10 +168,10 @@ Skill：✅ 生成完成，已保存到当前目录
 >
 > ```bash
 > # ✅ 正确：在启动目录用绝对路径调用，图片落在启动目录
-> node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js --prompt "..."
+> ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028 node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js --prompt "..."
 >
 > # ❌ 错误：cd 进 skill 目录后调用，图片会存到 skill 目录里
-> cd ~/.agents/skills/byted-ark-seedream-skill && node scripts/generate.js --prompt "..."
+> cd ~/.agents/skills/byted-ark-seedream-skill && ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028 node scripts/generate.js --prompt "..."
 > ```
 >
 > 如需固定保存到其它位置，可设置环境变量 `ARK_SEEDREAM_SAVE_PATH`（优先级高于启动目录）。
@@ -195,7 +196,7 @@ Skill：✅ 生成完成，已保存到当前目录
 > 🎉 图片生成完成！
 >
 > 💡 提示词: {images[0].prompt || prompt}
-> 🤖 模型: seedream-5.0-lite
+> 🤖 模型: doubao-seedream-5-5-261028
 > ⏱️ 耗时: {metadata.generation_time} 秒
 > 🖼️ 共 {metadata.image_count} 张
 > 📂 保存目录: {metadata.save_dir}

@@ -89,7 +89,7 @@ openclaw gateway restart
 
 ```bash
 # 在你想保存图片的目录下运行，用脚本绝对路径调用（不要 cd 进 skill 目录）
-node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js --prompt "一只可爱的英短蓝猫趴在窗边晒太阳" --size 2K
+ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028 node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js --prompt "一只可爱的英短蓝猫趴在窗边晒太阳" --size 2K
 ```
 
 看到图片成功保存到当前目录的 `Seedream-Images/`，说明安装成功！

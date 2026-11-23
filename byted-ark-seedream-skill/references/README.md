@@ -38,7 +38,7 @@ byted-ark-seedream-skill/
 | 配置项 | 说明 | 默认值 |
 |-------|------|--------|
 | **🔑 API Key** | **自动从平台配置读取**，无需手动配置。<br>找不到时可以通过环境变量兜底。 | 自动检测 |
-| `ARK_SEEDREAM_MODEL` | Seedream 模型 ID | `doubao-seedream-5.0-lite` |
+| `ARK_SEEDREAM_MODEL` | Seedream 模型 ID | `doubao-seedream-5-5-261028` |
 | `ARK_SEEDREAM_API_BASE_URL` | Seedream 专用 API 地址 | `https://ark.cn-beijing.volces.com/api/plan/v3` |
 | `ARK_SEEDREAM_SAVE_PATH` | 图片保存路径 | Claude 启动目录下的 `Seedream-Images`（当前工作目录） |
 
@@ -53,10 +53,10 @@ Skill 会按以下优先级自动检测 API Key，真正做到「零配置开箱
 当用户直接在对话中发送 Agent Plan 专属 API Key 时，Agent 层通过参数传给 Skill：
 ```bash
 # ✅ 默认仅本次临时使用，不保存到全局配置
-node scripts/generate.js --prompt "一只可爱的小猫" --api-key ark-xxx
+ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028 node scripts/generate.js --prompt "一只可爱的小猫" --api-key ark-xxx
 
 # ✅ 仅当用户明确要求「保存/以后使用这个 Key」时，才加 --save-api-key
-node scripts/generate.js --prompt "一只可爱的小猫" --api-key ark-xxx --save-api-key
+ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028 node scripts/generate.js --prompt "一只可爱的小猫" --api-key ark-xxx --save-api-key
 ```
 > ✅ Skill 会校验 Key 是否 Agent Plan 专属。
 > 
@@ -267,7 +267,7 @@ Skill 已原生支持流式输出。当 `sequential=true`（生成多张）时�
 
 ```bash
 # 方式 1：直接传参数（默认临时使用，不保存配置）
-node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js \
+ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028 node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js \
   --prompt "一只可爱的小猫，阳光洒进窗台，温暖色调" \
   --mode text-to-image \
   --api-key "ark-xxx"
@@ -277,7 +277,7 @@ export API_KEY="ark-xxx"
 
 # 测试文生图（如果用方式 2，不需要传 --api-key）
 # 注意：图片会保存到你当前所在目录的 Seedream-Images/，请勿 cd 进 skill 目录
-node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js \
+ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028 node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js \
   --prompt "一只可爱的小猫，阳光洒进窗台，温暖色调" \
   --mode text-to-image \
   --size 2K \
@@ -285,7 +285,7 @@ node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js \
   --count 1
 
 # 测试连贯图生成
-node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js \
+ARK_SEEDREAM_MODEL=doubao-seedream-5-5-261028 node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js \
   --prompt "一个女孩在海边的四季变迁" \
   --mode text-to-image \
   --size 2K \

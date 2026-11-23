@@ -594,8 +594,8 @@ const detected = autoDetectApiKey();
 const CONFIG = {
   // Agent Plan 专属版本 - 使用 Agent Plan 统一 baseurl /api/plan/v3
   apiBaseUrl: process.env.ARK_SEEDREAM_API_BASE_URL || process.env.ARK_API_BASE_URL || 'https://ark.cn-beijing.volces.com/api/plan/v3',
-  // Agent Plan Seedream 5.0 lite 模型（可通过环境变量扩展其他模型）
-  model: process.env.ARK_SEEDREAM_MODEL || process.env.ARK_MODEL || 'doubao-seedream-5.0-lite',
+  // Agent Plan 生图模型，优先读取调用进程的环境变量
+  model: process.env.ARK_SEEDREAM_MODEL || process.env.ARK_MODEL || 'doubao-seedream-5-5-261028',
   // API Key：自动检测结果
   apiKey: detected.found ? detected.key : '',
   savePath: getDefaultSavePath()
@@ -1072,7 +1072,7 @@ async function callSeedreamApi(params, saveDir, timestamp) {
     size: params.size || '2k',
     stream: params.stream,
     watermark: params.watermark !== false,
-    output_format: params.response_format || 'jpeg'  // 图片输出格式：png/jpeg（5.0 lite 默认 jpeg）
+    output_format: params.response_format || 'jpeg'  // 图片输出格式默认使用 JPEG，也支持 PNG
   };
 
   // 联网搜索开关
