@@ -593,6 +593,7 @@ const detected = autoDetectApiKey();
 const SEEDREAM_55_MODEL = 'doubao-seedream-5-5-261028';
 
 const CONFIG = {
+  provider: 'ark',
   // Agent Plan 专属版本 - 使用 Agent Plan 统一 baseurl /api/plan/v3
   apiBaseUrl: process.env.ARK_SEEDREAM_API_BASE_URL || process.env.ARK_API_BASE_URL || 'https://ark.cn-beijing.volces.com/api/plan/v3',
   // Agent Plan 生图模型，优先读取调用进程的环境变量
@@ -603,6 +604,73 @@ const CONFIG = {
 };
 const isSeedream55 = CONFIG.model === SEEDREAM_55_MODEL;
 
+const ATLAS_MODELS = {
+  generate: 'bytedance/seedream-v5.0-lite',
+  generateSequential: 'bytedance/seedream-v5.0-lite/sequential',
+  edit: 'bytedance/seedream-v5.0-lite/edit',
+  editSequential: 'bytedance/seedream-v5.0-lite/edit-sequential'
+};
+
+const ATLAS_SIZES = new Set([
+  '2048*2048', '2304*1728', '1728*2304', '2848*1600',
+  '1600*2848', '2496*1664', '1664*2496', '3136*1344',
+  '3072*3072', '3456*2592', '2592*3456', '4096*2304',
+  '2304*4096', '2496*3744', '3744*2496', '4704*2016'
+]);
+
+function normalizeProvider(provider) {
+  const normalized = String(provider || 'ark').trim().toLowerCase();
+  if (normalized === 'atlas' || normalized === 'atlas-cloud') return 'atlascloud';
+  if (normalized === 'volcengine') return 'ark';
+  if (!['ark', 'atlascloud'].includes(normalized)) {
+    throw new Error(`provider 参数无效（"${provider}"），支持：ark / atlascloud`);
+  }
+  return normalized;
+}
+
+function normalizeAtlasSize(size) {
+  const raw = String(size || '2K').trim();
+  const aliases = { '2k': '2048*2048', '3k': '3072*3072' };
+  const normalized = aliases[raw.toLowerCase()] || raw.replace(/x/i, '*');
+  if (!ATLAS_SIZES.has(normalized)) {
+    throw new Error(`Atlas Cloud size 参数不受 Seedream v5.0 Lite 支持（"${size}"）`);
+  }
+  return normalized;
+}
+
+function selectAtlasModel(params) {
+  if (params.model) return params.model;
+  if (process.env.ATLASCLOUD_SEEDREAM_MODEL) return process.env.ATLASCLOUD_SEEDREAM_MODEL;
+  const isEdit = params.mode === 'image-to-image';
+  if (isEdit && params.sequential) return ATLAS_MODELS.editSequential;
+  if (isEdit) return ATLAS_MODELS.edit;
+  if (params.sequential) return ATLAS_MODELS.generateSequential;
+  return ATLAS_MODELS.generate;
+}
+
+function buildAtlasPayload(params) {
+  const payload = {
+    model: selectAtlasModel(params),
+    prompt: params.prompt,
+    size: normalizeAtlasSize(params.size),
+    output_format: params.response_format || 'jpeg'
+  };
+
+  if (params.sequential) payload.max_images = Number(params.count || 4);
+  if (params.mode === 'image-to-image' && params.reference_images) {
+    payload.images = parseReferenceImages(params.reference_images);
+  }
+  return payload;
+}
+
+function unwrapApiData(body) {
+  return body && typeof body.data === 'object' ? body.data : body;
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 /**
  * 验证必需配置检查
  * @returns {Object} { valid: boolean, errors: string[], warnings: string[] }
@@ -612,6 +680,11 @@ function validateConfig() {
   const warnings = [];
 
   if (!CONFIG.apiKey) {
+    if (CONFIG.provider === 'atlascloud') {
+      errors.push('❌ 未检测到 Atlas Cloud API Key');
+      errors.push('💡 请设置 ATLASCLOUD_API_KEY，或本次使用 --api-key 传入。');
+      return { valid: false, errors, warnings };
+    }
     errors.push('❌ 未检测到有效的 Agent Plan API Key');
     errors.push('');
     errors.push('💡 请直接在对话中发送 Agent Plan 专属 API Key（必须以 \"ark-\" 开头）');
@@ -1069,6 +1142,10 @@ async function handleStreamChunk(chunk, saveDir, timestamp, totalImages, params)
 // ============================================
 
 async function callSeedreamApi(params, saveDir, timestamp) {
+  if (CONFIG.provider === 'atlascloud') {
+    return callAtlasCloudApi(params);
+  }
+
   const body = {
     model: CONFIG.model,
     prompt: params.prompt,
@@ -1156,6 +1233,64 @@ async function callSeedreamApi(params, saveDir, timestamp) {
   }
 }
 
+async function callAtlasCloudApi(params, dependencies = {}) {
+  const requestImpl = dependencies.requestImpl || request;
+  const sleepImpl = dependencies.sleepImpl || sleep;
+  const config = dependencies.config || CONFIG;
+  const body = buildAtlasPayload(params);
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${config.apiKey}`
+  };
+  const baseUrl = config.apiBaseUrl.replace(/\/$/, '');
+
+  console.error('📦 使用 Atlas Cloud 异步生成模式');
+  const submitted = await requestImpl(`${baseUrl}/generateImage`, {
+    method: 'POST',
+    headers
+  }, body);
+  if (submitted.statusCode < 200 || submitted.statusCode >= 300) {
+    throw new Error(`Atlas Cloud HTTP ${submitted.statusCode}: ${JSON.stringify(submitted.body)}`);
+  }
+
+  const prediction = unwrapApiData(submitted.body);
+  if (!prediction || !prediction.id) {
+    throw new Error('Atlas Cloud 未返回 prediction id');
+  }
+
+  const maxAttempts = Number(process.env.ATLASCLOUD_MAX_POLL_ATTEMPTS || 40);
+  const initialDelayMs = Number(process.env.ATLASCLOUD_POLL_INTERVAL_MS || 3000);
+  const predictionUrl = `${baseUrl}/prediction/${encodeURIComponent(prediction.id)}`;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const polled = await requestImpl(predictionUrl, { method: 'GET', headers });
+    if (polled.statusCode < 200 || polled.statusCode >= 300) {
+      throw new Error(`Atlas Cloud prediction HTTP ${polled.statusCode}: ${JSON.stringify(polled.body)}`);
+    }
+
+    const result = unwrapApiData(polled.body);
+    const status = String(result?.status || '').toLowerCase();
+    if (['completed', 'succeeded'].includes(status)) {
+      if (!Array.isArray(result.outputs) || result.outputs.length === 0) {
+        throw new Error('Atlas Cloud prediction 已完成但没有输出 URL');
+      }
+      return {
+        response: { data: result.outputs.map(url => ({ url })) },
+        generationTime: (Date.now() - startTime) / 1000
+      };
+    }
+    if (['failed', 'canceled', 'cancelled'].includes(status)) {
+      throw new Error(`Atlas Cloud prediction ${status}: ${result?.error || '无错误详情'}`);
+    }
+    if (attempt < maxAttempts) {
+      const delayMs = Math.min(Math.round(initialDelayMs * (1.35 ** (attempt - 1))), 10000);
+      await sleepImpl(delayMs);
+    }
+  }
+
+  throw new Error(`Atlas Cloud prediction 在 ${maxAttempts} 次轮询后仍未完成`);
+}
+
 // ============================================
 // 🏁 主函数
 // ============================================
@@ -1196,6 +1331,12 @@ async function main() {
     // 先解析命令行参数（必须在 validateConfig 之前，因为 --api-key 会修改 CONFIG）
     const args = process.argv.slice(2);
     const params = parseArgv(args);
+    CONFIG.provider = normalizeProvider(params.provider || process.env.SEEDREAM_PROVIDER || 'ark');
+
+    if (CONFIG.provider === 'atlascloud') {
+      CONFIG.apiBaseUrl = process.env.ATLASCLOUD_API_BASE_URL || 'https://api.atlascloud.ai/api/v1/model';
+      CONFIG.apiKey = process.env.ATLASCLOUD_API_KEY || process.env.ATLAS_CLOUD_API_KEY || '';
+    }
     
     // 🔑 优先处理用户传入的 API Key（支持三种写法：--api-key / --api_key / --apiKey）
     const apiKeyParam = params['api-key'] || params.api_key || params.apiKey;
@@ -1203,16 +1344,26 @@ async function main() {
     const shouldSaveKey = params['save-api-key'] !== undefined || params.save_api_key !== undefined || params.saveApiKey !== undefined;
     
     if (apiKeyParam) {
-      const validation = validateArkKey(apiKeyParam);
-      if (!validation.valid) {
-        console.error(`❌ ${validation.reason}`);
-        process.exit(1);
+      if (CONFIG.provider === 'atlascloud') {
+        CONFIG.apiKey = String(apiKeyParam).trim();
+        if (!CONFIG.apiKey) throw new Error('Atlas Cloud API Key 不能为空');
+      } else {
+        const validation = validateArkKey(apiKeyParam);
+        if (!validation.valid) {
+          console.error(`❌ ${validation.reason}`);
+          process.exit(1);
+        }
+        CONFIG.apiKey = validation.trimmed;
       }
-      CONFIG.apiKey = validation.trimmed;
       
       if (shouldSaveKey) {
+        if (CONFIG.provider === 'atlascloud') {
+          throw new Error('Atlas Cloud provider 不写入平台全局配置；请设置 ATLASCLOUD_API_KEY');
+        }
         // 显式要求保存才写入全局配置
         await autoSaveApiKey(CONFIG.apiKey);
+      } else if (CONFIG.provider === 'atlascloud') {
+        console.error('ℹ️  已临时使用本次提供的 Atlas Cloud API Key（不会保存到全局配置）');
       } else {
         // 🛡️ 默认仅临时使用，不保存
         console.error(`ℹ️  已使用本次提供的 API Key（默认仅本次临时使用，不保存到全局配置）`);
@@ -1281,6 +1432,10 @@ async function main() {
     if (params.stream === undefined) {
       params.stream = params.sequential || false;
     }
+    if (CONFIG.provider === 'atlascloud' && params.stream) {
+      console.error('ℹ️  Atlas Cloud 使用异步 prediction 轮询，已关闭 Ark SSE 流式模式');
+      params.stream = false;
+    }
     
     // 自动检测联网搜索：提示词包含相关关键词时自动开启
     if (!isSeedream55 && params.enable_web_search === undefined) {
@@ -1322,7 +1477,7 @@ async function main() {
     
     // 打印开始信息
     console.error('\n' + '='.repeat(50));
-    console.error('🎨 Ark Seedream 图片生成');
+    console.error(`🎨 ${CONFIG.provider === 'atlascloud' ? 'Atlas Cloud' : 'Ark'} Seedream 图片生成`);
     console.error('='.repeat(50));
     
     if (params.promptInfo && params.promptInfo.enabled) {
@@ -1394,6 +1549,8 @@ async function main() {
     const metadata = {
       prompt: params.prompt,
       original_prompt: params.originalPrompt,
+      provider: CONFIG.provider,
+      model: CONFIG.provider === 'atlascloud' ? selectAtlasModel(params) : CONFIG.model,
       mode: params.mode || 'text-to-image',
       size: params.size || '2k',
       sequential: params.sequential,
@@ -1437,6 +1594,8 @@ async function main() {
       error: null,
       metadata: {
         generation_time: parseFloat(totalTime),
+        provider: CONFIG.provider,
+        model: CONFIG.provider === 'atlascloud' ? selectAtlasModel(params) : CONFIG.model,
         size: params.size || '2k',
         mode: params.mode || 'text-to-image',
         stream: params.stream,
@@ -1496,4 +1655,15 @@ async function main() {
   }
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  ATLAS_MODELS,
+  normalizeProvider,
+  normalizeAtlasSize,
+  selectAtlasModel,
+  buildAtlasPayload,
+  callAtlasCloudApi
+};

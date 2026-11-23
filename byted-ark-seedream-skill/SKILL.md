@@ -53,6 +53,7 @@ metadata:
 
 | 参数名 | 类型 | 默认值 | 必填 | 说明 |
 |-------|------|--------|------|------|
+| `provider` | string | `ark` | ❌ | API provider：`ark` / `atlascloud` |
 | `prompt` | string | - | ✅ | 图片描述提示词，越详细效果越好 |
 | `mode` | string | `text-to-image` | ❌ | 生成模式：`text-to-image`（文生图） / `image-to-image`（图生图） |
 | `size` | string | `2K` | ❌ | 图片分辨率：`2K` / `3K` 或具体像素值 |
@@ -175,6 +176,18 @@ Skill：✅ 生成完成，已保存到当前目录
 > ```
 >
 > 如需固定保存到其它位置，可设置环境变量 `ARK_SEEDREAM_SAVE_PATH`（优先级高于启动目录）。
+
+### Atlas Cloud 可选 provider
+
+设置 `provider=atlascloud` 时，Skill 使用 Atlas Cloud 的异步 Seedream API；Ark 仍是默认 provider。Atlas Cloud 凭证只从 `ATLASCLOUD_API_KEY`（或本次 `--api-key`）读取，不写入平台全局配置。生成请求只提交一次，随后通过 prediction API 进行有界轮询。
+
+```bash
+export ATLASCLOUD_API_KEY="<atlascloud-api-key>"
+node ~/.agents/skills/byted-ark-seedream-skill/scripts/generate.js \
+  --provider atlascloud \
+  --prompt "一只可爱的小猫，阳光洒进窗台" \
+  --size 2K
+```
 
 ## 📚 更多文档
 

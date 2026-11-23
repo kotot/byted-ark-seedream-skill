@@ -96,6 +96,23 @@ apiKey
 |---------|------|
 | **`doubao-seedream-5-5-261028`** | 此版本的默认生图模型 |
 
+### Atlas Cloud provider（可选）
+
+默认 provider 仍是 `ark`。设置 `--provider atlascloud` 后，脚本会根据文生图、图生图和连贯组图模式自动选择对应的 Atlas Cloud Seedream v5.0 Lite 模型，通过 `POST /api/v1/model/generateImage` 提交一次任务，再有界轮询 `GET /api/v1/model/prediction/{id}`。
+
+```bash
+export ATLASCLOUD_API_KEY="<atlascloud-api-key>"
+node scripts/generate.js --provider atlascloud --prompt "一只可爱的小猫" --size 2K
+```
+
+| 环境变量 | 说明 | 默认值 |
+|---------|------|--------|
+| `ATLASCLOUD_API_KEY` | Atlas Cloud API Key | - |
+| `ATLASCLOUD_API_BASE_URL` | Atlas Cloud media API base URL | `https://api.atlascloud.ai/api/v1/model` |
+| `ATLASCLOUD_SEEDREAM_MODEL` | 覆盖自动选择的 Seedream 模型 | 按生成模式自动选择 |
+| `ATLASCLOUD_POLL_INTERVAL_MS` | prediction 初始轮询间隔 | `3000` |
+| `ATLASCLOUD_MAX_POLL_ATTEMPTS` | 最大轮询次数 | `40` |
+
 ---
 
 ## 📋 高级配置（一般不需要）
